@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>Digit Studio — Handwritten digit recognition</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #11182b;
+      --panel-raised: #151e34;
+      --border: rgba(156, 176, 224, .13);
+      --text: #f3f5ff;
+      --muted: #8d98b5;
+      --purple: #a78bfa;
+      --cyan: #67e8f9;
+      --green: #86efac;
+      --mono: "DM Mono", monospace;
+      --sans: "DM Sans", sans-serif;
+      --display: "Space Grotesk", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 12% 0%, rgba(119, 83, 232, .17), transparent 38rem),
+        radial-gradient(ellipse at 94% 32%, rgba(32, 170, 195, .09), transparent 32rem),
+        var(--bg);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+    button:focus-visible, input:focus-visible, canvas:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    .shell { width: min(1120px, calc(100% - 44px)); margin: auto; }
+    .topbar {
+      display: flex;
+      min-height: 78px;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; gap: 11px; align-items: center; font-weight: 700; letter-spacing: -.03em; }
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border: 1px solid rgba(167, 139, 250, .38);
+      border-radius: 11px;
+      color: #e9ddff;
+      background: linear-gradient(145deg, rgba(167, 139, 250, .32), rgba(103, 232, 249, .12));
+      font-family: var(--display);
+      font-size: 18px;
+    }
+    .brand-name { font-family: var(--display); font-size: 16px; }
+    .brand-name span { color: var(--muted); font-weight: 500; }
+    .top-meta { display: flex; gap: 10px; align-items: center; }
+    .status-pill, .dataset-pill {
+      display: inline-flex;
+      min-height: 30px;
+      align-items: center;
+      gap: 8px;
+      padding: 0 11px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: #c4cce2;
+      background: rgba(255, 255, 255, .025);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 12px rgba(134, 239, 172, .7); }
+    .hero { padding: 47px 0 29px; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { width: 19px; height: 1px; background: currentColor; content: ""; }
+    h1 {
+      max-width: 720px;
+      margin: 14px 0 9px;
+      font-family: var(--display);
+      font-size: clamp(38px, 6vw, 62px);
+      font-weight: 600;
+      letter-spacing: -.065em;
+      line-height: 1.03;
+    }
+    h1 span {
+      color: transparent;
+      background: linear-gradient(100deg, #c4b5fd 5%, #67e8f9 85%);
+      background-clip: text;
+      -webkit-background-clip: text;
+    }
+    .hero-copy { max-width: 570px; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.7; }
+
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.17fr) minmax(330px, .83fr); gap: 17px; align-items: stretch; }
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: linear-gradient(145deg, rgba(21, 30, 52, .97), rgba(15, 22, 39, .96));
+      box-shadow: 0 18px 55px rgba(0, 0, 0, .16);
+    }
+    .draw-panel, .result-panel { padding: 21px; }
+    .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+    .panel-kicker { margin: 0 0 5px; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
+    h2, h3 { margin: 0; font-family: var(--display); font-weight: 600; letter-spacing: -.035em; }
+    h2 { font-size: 19px; }
+    h3 { font-size: 16px; }
+    .model-control { display: grid; gap: 5px; color: var(--muted); font-family: var(--mono); font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
+    .model-select {
+      max-width: 160px;
+      min-height: 34px;
+      padding: 0 27px 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: #e7e9fa;
+      background: #121a2e;
+      font-size: 11px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .result-tools { display: flex; align-items: center; gap: 8px; }
+    .auto-indicator { display: inline-flex; align-items: center; gap: 7px; padding: 7px 9px; border-radius: 8px; color: #c7f9e4; background: rgba(134, 239, 172, .08); font-family: var(--mono); font-size: 10px; white-space: nowrap; }
+    .auto-indicator .status-dot { width: 6px; height: 6px; }
+
+    .canvas-frame {
+      position: relative;
+      overflow: hidden;
+      padding: 10px;
+      border: 1px solid rgba(167, 139, 250, .19);
+      border-radius: 15px;
+      background:
+        linear-gradient(rgba(167, 139, 250, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(167, 139, 250, .035) 1px, transparent 1px),
+        #090e1b;
+      background-size: 22px 22px;
+    }
+    #pad { display: block; width: 100%; aspect-ratio: 1; border-radius: 9px; background: #fbfcff; cursor: crosshair; touch-action: none; }
+    .canvas-hint { position: absolute; right: 19px; bottom: 18px; padding: 5px 8px; border-radius: 6px; color: #7f88a1; background: rgba(9, 14, 27, .78); font-family: var(--mono); font-size: 9px; pointer-events: none; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 14px 1px 2px; }
+    .brush-control { display: flex; min-width: 0; align-items: center; gap: 10px; color: var(--muted); font-family: var(--mono); font-size: 10px; }
+    #brush { width: 90px; accent-color: #a78bfa; }
+    #brush-value { min-width: 25px; color: #dce2f5; }
+    .actions { display: flex; gap: 9px; }
+    .button {
+      display: inline-flex;
+      min-height: 39px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 0 13px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: #c5cce0;
+      background: rgba(255, 255, 255, .035);
+      cursor: pointer;
+      transition: transform .16s ease, border-color .16s ease, background .16s ease, opacity .16s ease;
+    }
+    .button:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(167, 139, 250, .5); background: rgba(167, 139, 250, .09); }
+    .button:disabled { cursor: wait; opacity: .65; }
+    .button-primary {
+      border-color: transparent;
+      color: #0d1120;
+      background: linear-gradient(100deg, #bba5ff, #80e9f3);
+      box-shadow: 0 5px 22px rgba(145, 135, 255, .19);
+      font-weight: 700;
+    }
+    .button-primary:hover:not(:disabled) { border-color: transparent; background: linear-gradient(100deg, #c9b7ff, #9bf0f8); }
+    .button svg { width: 15px; height: 15px; }
+
+    .result-panel { display: flex; flex-direction: column; }
+    .result-state { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr) 116px; align-items: center; gap: 10px; min-height: 180px; }
+    .prediction-number {
+      min-height: 116px;
+      color: #e9e9ff;
+      font-family: var(--display);
+      font-size: clamp(94px, 12vw, 132px);
+      font-weight: 600;
+      letter-spacing: -.09em;
+      line-height: 1;
+      text-shadow: 0 0 35px rgba(167, 139, 250, .28);
+      animation: pop-in .28s ease-out;
+    }
+    .prediction-caption { margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .confidence-ring {
+      --confidence: 0%;
+      display: grid;
+      width: 108px;
+      aspect-ratio: 1;
+      place-items: center;
+      border-radius: 50%;
+      background: conic-gradient(from -90deg, #a78bfa var(--confidence), rgba(141, 152, 181, .15) var(--confidence));
+      transition: background .45s ease;
+    }
+    .ring-inner { display: flex; width: 88px; aspect-ratio: 1; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; background: #131b2f; }
+    .ring-value { font-family: var(--display); font-size: 21px; font-weight: 600; }
+    .ring-caption { margin-top: 2px; color: var(--muted); font-family: var(--mono); font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
+    .result-message { min-height: 17px; margin: 0; color: var(--muted); font-size: 11px; }
+    .result-message.error { color: #fda4af; }
+    .chart-heading { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 10px; }
+    .chart-heading span, .mini-chart-label { color: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+    .analysis-viz { display: grid; grid-template-columns: 83px minmax(0, 1fr); gap: 12px; align-items: end; }
+    .pixel-preview { padding: 8px; border: 1px solid var(--border); border-radius: 9px; background: rgba(255, 255, 255, .02); }
+    .pixel-preview-heading { display: flex; justify-content: space-between; gap: 4px; margin-bottom: 7px; color: var(--muted); font-family: var(--mono); font-size: 7px; text-transform: uppercase; }
+    #pixel-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; aspect-ratio: 1; }
+    .pixel-cell { border-radius: 1px; background: #a78bfa; opacity: .06; transition: opacity .2s ease; }
+    .mini-chart-label { margin-bottom: 2px; }
+    #bars { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; min-height: 116px; align-items: end; padding: 8px 0 0; border-bottom: 1px solid var(--border); }
+    .bar-column { display: flex; min-width: 0; height: 108px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
+    .bar-value { color: #adb7d0; font-family: var(--mono); font-size: 8px; line-height: 1; }
+    .bar-track { display: flex; width: 100%; height: 78px; align-items: flex-end; overflow: hidden; border-radius: 5px 5px 2px 2px; background: rgba(255, 255, 255, .035); }
+    .bar-fill { width: 100%; height: 0; border-radius: 5px 5px 2px 2px; background: linear-gradient(180deg, #71e7ef, #8e80ff); transition: height .48s cubic-bezier(.2,.8,.2,1), filter .2s ease; }
+    .bar-column.is-top .bar-fill { background: linear-gradient(180deg, #a9f5ef, #bba5ff); filter: drop-shadow(0 0 8px rgba(167, 139, 250, .55)); }
+    .bar-label { padding-bottom: 5px; color: #77819c; font-family: var(--mono); font-size: 9px; }
+    .bar-column.is-top .bar-label { color: #e8ddff; }
+    .result-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; color: var(--muted); font-family: var(--mono); font-size: 9px; }
+    .result-footer strong { color: #e0d7ff; font-weight: 500; }
+
+    .section { margin-top: 32px; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 15px; margin: 0 2px 14px; }
+    .section-heading h2 { font-size: 20px; }
+    .section-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .metric-card { padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: rgba(17, 24, 43, .77); }
+    .metric-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .metric-name { overflow: hidden; color: #dce2f5; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .metric-tag { color: var(--muted); font-family: var(--mono); font-size: 8px; }
+    .metric-value { margin: 14px 0 9px; font-family: var(--display); font-size: 27px; letter-spacing: -.04em; }
+    .metric-value span { color: var(--muted); font-family: var(--sans); font-size: 11px; letter-spacing: 0; }
+    .metric-track { height: 4px; overflow: hidden; border-radius: 9px; background: rgba(255, 255, 255, .07); }
+    .metric-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #a78bfa, #67e8f9); }
+    .metric-params { overflow: hidden; margin-top: 9px; color: var(--muted); font-family: var(--mono); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .visual-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .visual-card { overflow: hidden; padding: 17px; }
+    .visual-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+    .visual-title span { color: var(--muted); font-family: var(--mono); font-size: 9px; }
+    .visual-card img { display: block; width: 100%; border-radius: 9px; background: #fff; }
+    .visual-description { margin: 10px 1px 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 23px 0 30px; color: #6f7993; font-size: 10px; }
+    .footer span:last-child { font-family: var(--mono); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+
+    @keyframes pop-in { from { transform: translateY(7px) scale(.97); opacity: .55; } to { transform: translateY(0) scale(1); opacity: 1; } }
+    @media (max-width: 760px) {
+      .workspace { grid-template-columns: 1fr; }
+      .result-state { min-height: 145px; }
+      .prediction-number { font-size: 105px; }
+      .result-panel { min-height: 325px; }
+      .metrics-grid { grid-template-columns: 1fr; }
+      .metric-card { min-width: 0; padding: 13px 15px; }
+      .metric-value { display: block; margin: 9px 0 8px; }
+      .metric-track { display: block; width: 100%; }
+      .metric-params { margin-top: 4px; }
+    }
+    @media (max-width: 520px) {
+      .shell { width: min(100% - 28px, 440px); }
+      .topbar { min-height: 65px; }
+      .dataset-pill { display: none; }
+      .hero { padding: 37px 0 24px; }
+      .hero-copy { font-size: 13px; }
+      .draw-panel, .result-panel { padding: 15px; }
+      .auto-indicator { padding: 6px 7px; font-size: 8px; }
+      .toolbar { align-items: flex-start; flex-direction: column; }
+      .actions { width: 100%; }
+      .actions .button { flex: 1; }
+      .visual-grid { grid-template-columns: 1fr; }
+      .section-heading { align-items: flex-start; flex-direction: column; }
+      .footer { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">D</span>
+        <span class="brand-name">digit<span> / studio</span></span>
+      </div>
+      <div class="top-meta">
+        <span class="dataset-pill">8 × 8 neural vision</span>
+        <span class="status-pill"><span class="status-dot"></span>Model online</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <span class="eyebrow">A little machine learning magic</span>
+        <h1>Your handwriting,<br><span>decoded in real time.</span></h1>
+        <p class="hero-copy">Sketch a digit and watch the model think. Every stroke updates its prediction and confidence—clear the canvas and try another.</p>
+      </section>
+
+      <section class="workspace" aria-label="Digit recognition workspace">
+        <article class="panel draw-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">01 / Your canvas</p>
+              <h2>Draw a digit</h2>
+            </div>
+            <span class="auto-indicator"><span class="status-dot"></span>Live analysis</span>
+          </div>
+          <div class="canvas-frame">
+            <canvas id="pad" width="280" height="280" aria-label="Draw a digit here" tabindex="0"></canvas>
+            <span class="canvas-hint">DRAW ANY DIGIT · 0—9</span>
+          </div>
+          <div class="toolbar">
+            <label class="brush-control" for="brush">
+              <span>BRUSH</span>
+              <input id="brush" type="range" min="18" max="42" value="30">
+              <span id="brush-value">30 px</span>
+            </label>
+            <div class="actions">
+              <button id="clr" class="button" type="button" aria-label="Clear drawing">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+                Clear
+              </button>
+              <button id="go" class="button button-primary" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg>
+                Predict
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel result-panel" aria-live="polite">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">02 / Model output</p>
+              <h2>Live prediction</h2>
+            </div>
+            <div class="result-tools">
+              <span id="analysis-state" class="dataset-pill">Waiting for ink</span>
+              <label class="model-control" for="model-select">
+                <span>CLASSIFIER</span>
+                <select id="model-select" class="model-select">
+                  <option value="Majority vote (experimental)" {% if meta.default_model == "Majority vote (experimental)" %}selected{% endif %}>Majority vote (experimental)</option>
+                  {% for name in meta.results %}
+                  <option value="{{ name }}" {% if name == meta.default_model %}selected{% endif %}>{{ name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="result-state">
+            <div>
+              <div id="big" class="prediction-number">—</div>
+              <div id="prediction-caption" class="prediction-caption">Draw something to get started</div>
+            </div>
+            <div id="confidence-ring" class="confidence-ring" role="img" aria-label="Confidence not available">
+              <div class="ring-inner">
+                <span id="confidence-value" class="ring-value">—%</span>
+                <span id="confidence-caption" class="ring-caption">confidence</span>
+              </div>
+            </div>
+          </div>
+          <p id="msg" class="result-message" role="status"></p>
+          <div class="chart-heading">
+            <h3>Live analysis</h3>
+            <span>Updates as you draw</span>
+          </div>
+          <div class="analysis-viz">
+            <div class="pixel-preview">
+              <div class="pixel-preview-heading"><span>Input</span><span>8 × 8</span></div>
+              <div id="pixel-grid" role="img" aria-label="Processed input pixel map"></div>
+            </div>
+            <div>
+              <div id="chart-label" class="mini-chart-label">{% if meta.default_model == "Majority vote (experimental)" %}Model vote by digit{% else %}Confidence by digit{% endif %}</div>
+              <div id="bars" role="img" aria-label="Prediction confidence chart"></div>
+            </div>
+          </div>
+          <div class="result-footer">
+            <span>ACTIVE MODEL             <strong id="active-model">{{ meta.default_model or meta.best_model }}</strong></span>
+            <span>8 × 8 PIXELS</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="section" aria-labelledby="models-title">
+        <div class="section-heading">
+          <div>
+            <p class="panel-kicker">03 / Under the hood</p>
+            <h2 id="models-title">Meet the models</h2>
+          </div>
+          <p>5-fold cross-validation · held-out test set</p>
+        </div>
+        <div class="metrics-grid">
+          {% for name, result in meta.results.items() %}
+          <article class="metric-card">
+            <div class="metric-top">
+              <span class="metric-name">{{ name }}</span>
+              {% if name == meta.best_model %}<span class="metric-tag">BEST MODEL</span>{% else %}<span class="metric-tag">CLASSIFIER</span>{% endif %}
+            </div>
+            <div class="metric-value">{{ "%.2f"|format(result.test_accuracy * 100) }}<span>% test accuracy</span></div>
+            <div class="metric-track"><div class="metric-fill" style="width: {{ result.test_accuracy * 100 }}%"></div></div>
+            <div class="metric-params">CV {{ "%.2f"|format(result.cv_accuracy * 100) }}% &nbsp;·&nbsp; variation {{ "%.2f"|format(result.robustness_accuracy * 100) }}%</div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="visuals-title">
+        <div class="section-heading">
+          <div>
+            <p class="panel-kicker">04 / Model observatory</p>
+            <h2 id="visuals-title">Inside the data</h2>
+          </div>
+          <p>Every pixel helps tell the story</p>
+        </div>
+        <div class="visual-grid">
+          <article class="panel visual-card">
+            <div class="visual-title"><h3>Feature map</h3><span>DIMENSION REDUCTION</span></div>
+            <img src="{{ url_for('static', filename='pca.png') }}" alt="PCA map showing handwritten digit clusters">
+            <p class="visual-description">A 2D view of the digit dataset. Similar handwriting tends to cluster together.</p>
+          </article>
+          <article class="panel visual-card">
+            <div class="visual-title"><h3>Confusion matrix</h3><span>HELD-OUT TEST SET</span></div>
+            <img src="{{ url_for('static', filename='confusion.png') }}" alt="Confusion matrix for the selected digit classifier">
+            <p class="visual-description">Correct guesses gather along the diagonal; off-diagonal cells show which digits can be confused.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>A small experiment in machine learning, made for curious minds.</span>
+      <span>DRAW · PREDICT · REPEAT</span>
+    </footer>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("pad");
+    const context = canvas.getContext("2d");
+    const message = document.getElementById("msg");
+    const bars = document.getElementById("bars");
+    const prediction = document.getElementById("big");
+    const caption = document.getElementById("prediction-caption");
+    const confidenceValue = document.getElementById("confidence-value");
+    const confidenceCaption = document.getElementById("confidence-caption");
+    const confidenceRing = document.getElementById("confidence-ring");
+    const chartLabel = document.getElementById("chart-label");
+    const analysisState = document.getElementById("analysis-state");
+    const predictButton = document.getElementById("go");
+    const modelSelect = document.getElementById("model-select");
+    const activeModel = document.getElementById("active-model");
+    const brush = document.getElementById("brush");
+    const pixelGrid = document.getElementById("pixel-grid");
+    const chartColumns = [];
+    const pixelCells = [];
+    let drawing = false;
+    let hasInk = false;
+    let debounceTimer;
+    let requestController;
+    let requestSequence = 0;
+
+    function makeChart() {
+      for (let index = 0; index < 64; index += 1) {
+        const cell = document.createElement("span");
+        cell.className = "pixel-cell";
+        pixelGrid.append(cell);
+        pixelCells.push(cell);
+      }
+      for (let digit = 0; digit < 10; digit += 1) {
+        const column = document.createElement("div");
+        column.className = "bar-column";
+        const value = document.createElement("span");
+        value.className = "bar-value";
+        value.textContent = "—";
+        const track = document.createElement("div");
+        track.className = "bar-track";
+        const fill = document.createElement("div");
+        fill.className = "bar-fill";
+        track.append(fill);
+        const label = document.createElement("span");
+        label.className = "bar-label";
+        label.textContent = digit;
+        column.append(value, track, label);
+        bars.append(column);
+        chartColumns.push({ column, value, fill });
+      }
+    }
+
+    function resetCanvas() {
+      context.fillStyle = "#fbfcff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.lineWidth = Number(brush.value);
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.strokeStyle = "#17152b";
+    }
+
+    function point(event) {
+      const bounds = canvas.getBoundingClientRect();
+      return [
+        (event.clientX - bounds.left) * canvas.width / bounds.width,
+        (event.clientY - bounds.top) * canvas.height / bounds.height
+      ];
+    }
+
+    function setMessage(text, isError = false) {
+      message.textContent = text;
+      message.classList.toggle("error", isError);
+    }
+
+    function resetResult() {
+      prediction.textContent = "—";
+      caption.textContent = "Draw something to get started";
+      confidenceValue.textContent = "—%";
+      confidenceCaption.textContent = "confidence";
+      confidenceRing.style.setProperty("--confidence", "0%");
+      confidenceRing.setAttribute("aria-label", "Confidence not available");
+      pixelCells.forEach(cell => { cell.style.opacity = ".06"; });
+      chartColumns.forEach(({ column, value, fill }) => {
+        column.classList.remove("is-top");
+        value.textContent = "—";
+        fill.style.height = "0%";
+      });
+      analysisState.textContent = "Waiting for ink";
+      setMessage("");
+    }
+
+    async function predict() {
+      if (!hasInk) {
+        resetResult();
+        return;
+      }
+
+      if (requestController) requestController.abort();
+      requestController = new AbortController();
+      const sequence = ++requestSequence;
+      predictButton.disabled = true;
+      analysisState.textContent = "Analyzing";
+      setMessage("Reading your strokes…");
+
+      try {
+        const response = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image: canvas.toDataURL("image/png"),
+            model: modelSelect.value
+          }),
+          signal: requestController.signal
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Prediction failed.");
+        if (sequence !== requestSequence) return;
+
+        const confidence = result.probabilities[result.prediction] || 0;
+        prediction.textContent = result.prediction;
+        const isConsensus = result.model === "Majority vote (experimental)";
+        caption.textContent = isConsensus
+          ? `${Math.round(confidence / 100 * 3)} of 3 models vote for ${result.prediction}`
+          : `The model thinks this is a ${result.prediction}`;
+        activeModel.textContent = result.model;
+        confidenceValue.textContent = `${confidence.toFixed(1)}%`;
+        confidenceCaption.textContent = isConsensus ? "model vote" : "confidence";
+        chartLabel.textContent = isConsensus ? "Model vote by digit" : "Confidence by digit";
+        confidenceRing.style.setProperty("--confidence", `${confidence}%`);
+        confidenceRing.setAttribute("aria-label", `${confidence.toFixed(1)} percent confidence`);
+        result.pixels.flat().forEach((value, index) => {
+          pixelCells[index].style.opacity = `${0.06 + Math.min(value, 16) / 16 * 0.94}`;
+        });
+        chartColumns.forEach(({ column, value, fill }, digit) => {
+          const probability = result.probabilities[digit] || 0;
+          column.classList.toggle("is-top", digit === result.prediction);
+          value.textContent = `${probability.toFixed(0)}%`;
+          fill.style.height = `${Math.max(probability, probability > 0 ? 2 : 0)}%`;
+        });
+        analysisState.textContent = "Updated live";
+        setMessage("");
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        analysisState.textContent = "Try again";
+        setMessage(error instanceof Error ? error.message : "Prediction failed.", true);
+      } finally {
+        if (sequence === requestSequence) predictButton.disabled = false;
+      }
+    }
+
+    makeChart();
+    resetCanvas();
+    canvas.addEventListener("pointerdown", event => {
+      drawing = true;
+      hasInk = true;
+      canvas.setPointerCapture(event.pointerId);
+      const [x, y] = point(event);
+      context.beginPath();
+      context.arc(x, y, context.lineWidth / 2, 0, Math.PI * 2);
+      context.fillStyle = context.strokeStyle;
+      context.fill();
+      context.beginPath();
+      context.moveTo(x, y);
+      setMessage("Keep drawing—or pause for a live prediction.");
+      analysisState.textContent = "Listening";
+    });
+    canvas.addEventListener("pointermove", event => {
+      if (!drawing) return;
+      context.lineTo(...point(event));
+      context.stroke();
+      window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(predict, 420);
+    });
+    function finishStroke() {
+      if (!drawing) return;
+      drawing = false;
+      window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(predict, 260);
+    }
+    canvas.addEventListener("pointerup", finishStroke);
+    canvas.addEventListener("pointercancel", finishStroke);
+    canvas.addEventListener("lostpointercapture", finishStroke);
+
+    brush.addEventListener("input", () => {
+      document.getElementById("brush-value").textContent = `${brush.value} px`;
+      context.lineWidth = Number(brush.value);
+    });
+    document.getElementById("clr").addEventListener("click", () => {
+      window.clearTimeout(debounceTimer);
+      if (requestController) requestController.abort();
+      requestSequence += 1;
+      predictButton.disabled = false;
+      hasInk = false;
+      resetCanvas();
+      resetResult();
+    });
+    predictButton.addEventListener("click", () => {
+      window.clearTimeout(debounceTimer);
+      predict();
+    });
+    modelSelect.addEventListener("change", () => {
+      activeModel.textContent = modelSelect.value;
+      if (!hasInk) return;
+      window.clearTimeout(debounceTimer);
+      predict();
+    });
+  </script>
+</body>
+</html>

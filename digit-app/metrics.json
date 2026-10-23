@@ -1,0 +1,34 @@
+{
+  "best_model": "SVM",
+  "default_model": "Random Forest",
+  "results": {
+    "SVM": {
+      "cv_accuracy": 0.9729,
+      "test_accuracy": 0.9944,
+      "robustness_accuracy": 0.9722,
+      "best_params": {
+        "C": "10",
+        "gamma": "scale",
+        "kernel": "rbf"
+      }
+    },
+    "Random Forest": {
+      "cv_accuracy": 0.9666,
+      "test_accuracy": 0.9806,
+      "robustness_accuracy": 0.963,
+      "best_params": {
+        "max_depth": "None",
+        "n_estimators": "100"
+      }
+    },
+    "Neural Network (MLP)": {
+      "cv_accuracy": 0.9694,
+      "test_accuracy": 0.9889,
+      "robustness_accuracy": 0.9667,
+      "best_params": {
+        "alpha": "0.01",
+        "hidden_layer_sizes": "(128, 64)"
+      }
+    }
+  }
+}
